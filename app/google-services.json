@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "428939734014",
+    "firebase_url": "https://resolve-ai-android.firebaseio.com",
+    "project_id": "resolve-ai-android",
+    "storage_bucket": "resolve-ai-android.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:428939734014:android:f1a166cb953853eefaeeaf",
+        "android_client_info": {
+          "package_name": "com.android.resolveai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "428939734014-r19n8n52um5e40cj6dv5qksiiogtqn76.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.android.resolveai",
+            "certificate_hash": "aa6257710571a51ca28315b0c0890fa3516dce9a"
+          }
+        },
+        {
+          "client_id": "428939734014-dut02c5vb983ljrn8k8fc0hsoad3sqe5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBiSVSUP9KOPNLl8S3tT_uE6L7OwuWyEQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "428939734014-dut02c5vb983ljrn8k8fc0hsoad3sqe5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
