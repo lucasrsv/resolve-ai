@@ -1,3 +1,7 @@
 <resources>
+<<<<<<< HEAD
     <string name="app_name">Resolve Aí</string>
+=======
+    <string name="app_name">Responde Aí</string>
+>>>>>>> f202fc8f05413882e1298ab1fba32dd0ac16ad73
 </resources>

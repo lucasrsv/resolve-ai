@@ -1,2 +1,5 @@
 rootProject.name = "Resolve Aí"
+
+rootProject.name = "Responde Aí"
+
 include ':app'
