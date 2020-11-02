@@ -9,4 +9,5 @@ data class Post(
     val postDescription: String = "",
     val postLocale: String = "",
     val postDate: Date?,
+    val postLikes: Int = 0,
     val postComments: List<Comment>)
