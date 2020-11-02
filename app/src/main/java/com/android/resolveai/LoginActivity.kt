@@ -80,7 +80,7 @@ class LoginActivity : AppCompatActivity() {
                     if (isNewUser) {
                         writeNewUser()
                     }
-                    val intent = Intent(baseContext, HomeActivity::class.java)
+                    val intent = Intent(baseContext, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
                     startActivity(intent)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
