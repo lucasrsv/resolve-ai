@@ -18,6 +18,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
+import java.sql.Timestamp
+import java.util.*
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
@@ -98,12 +100,8 @@ class LoginActivity : AppCompatActivity() {
 
     private fun writeNewUser() {
         val firebaseUser = FirebaseAuth.getInstance().currentUser
-        val comment = Comment(
-            commentDate =
-            null
-        )
+        val comment = Comment()
         val post = Post(
-            postDate = null,
             postComments = listOf(comment)
         )
 
