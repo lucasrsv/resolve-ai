@@ -14,6 +14,8 @@ import com.firebase.ui.database.FirebaseRecyclerOptions
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.Query
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.ktx.storage
 import kotlinx.android.synthetic.main.report_item.view.*
 import java.util.*
 
@@ -23,7 +25,6 @@ class HomeFragment : Fragment() {
     private lateinit var database: DatabaseReference
     private lateinit var options: FirebaseRecyclerOptions<Post>
     private lateinit var firebaseQuery: Query
-
     private lateinit var reportAdapter: FirebaseRecyclerAdapter<Post, ReportAdapter.ReportViewHolder>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +40,9 @@ class HomeFragment : Fragment() {
             inflater: LayoutInflater, container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-
         val view = inflater.inflate(R.layout.fragment_home, container, false)
+        val storage = Firebase.storage
+        val storageRef = storage.reference
         recyclerView()
         recyclerReport = view.findViewById<RecyclerView>(R.id.recycler_view).apply {
             layoutManager = LinearLayoutManager(activity)
