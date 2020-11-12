@@ -10,6 +10,7 @@ data class Post(
         val postDescription: String = "",
         val postLocale: String = "",
         val postLikes: Int = 0,
+        val postImageUrl: String = "",
         val postComments: List<Comment> = listOf(Comment(
                 0,
                 0,

@@ -12,8 +12,22 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <ImageView
+            android:id="@+id/reportImage"
+            android:layout_width="match_parent"
+            android:layout_height="194dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ariana"
+            android:contentDescription="@string/ariana" />
+
         <com.google.android.material.textview.MaterialTextView
             android:id="@+id/reportTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceHeadline6" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/aa"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textAppearance="?attr/textAppearanceHeadline6" />
