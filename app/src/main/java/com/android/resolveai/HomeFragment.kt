@@ -123,7 +123,9 @@ class HomeFragment : Fragment() {
                 connection.connect()
                 val input: InputStream = connection.inputStream
                 val bitmap: Bitmap = BitmapFactory.decodeStream(input)
-                reportImage.setImageBitmap(bitmap)
+                withContext(Dispatchers.Main) {
+                    reportImage.setImageBitmap(bitmap)
+                }
             } catch (e: IOException) {
                 e.printStackTrace()
                 e.message?.let { Log.e("Exception ", it) }

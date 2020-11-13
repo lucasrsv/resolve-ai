@@ -17,7 +17,6 @@
             android:layout_width="match_parent"
             android:layout_height="194dp"
             android:scaleType="centerCrop"
-            android:src="@drawable/ariana"
             android:contentDescription="@string/ariana" />
 
         <com.google.android.material.textview.MaterialTextView

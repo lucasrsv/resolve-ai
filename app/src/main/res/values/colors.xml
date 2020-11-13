@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="color_primary">#3ccc81</color>
-    <color name="color_primary_light">#77ffb1</color>
-    <color name="color_primary_dark">#009a54</color>
-    <color name="color_secondary">#3ea584</color>
-    <color name="color_secondary_light">#72d7b4</color>
-    <color name="color_secondary_dark">#007557</color>
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
