@@ -18,8 +18,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
-import java.sql.Timestamp
-import java.util.*
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
@@ -27,6 +25,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var signInButton: SignInButton
     private lateinit var auth: FirebaseAuth
     private lateinit var database: DatabaseReference
+    private lateinit var authStateListener: FirebaseAuth.AuthStateListener
     private val RC_SIGN_IN = 9001
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,12 +42,33 @@ class LoginActivity : AppCompatActivity() {
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
         auth = FirebaseAuth.getInstance()
+        authStateListener = FirebaseAuth.AuthStateListener {
+            val firebaseUser = auth.currentUser
+            if (firebaseUser != null) {
+                val intent = Intent(this, MainActivity::class.java)
+                startActivity(intent)
+                if(Build.VERSION.SDK_INT > 21) {
+                    window.exitTransition = null
+                }
+                overridePendingTransition(0, 0);
+                finish()
+            }
+        }
         database = FirebaseDatabase.getInstance().reference
-
         signInButton.setOnClickListener {
             signIn()
         }
 
+    }
+
+    override fun onStart() {
+        super.onStart()
+        auth.addAuthStateListener(authStateListener)
+    }
+
+    override fun onStop() {
+        auth.removeAuthStateListener(authStateListener)
+        super.onStop()
     }
     private fun signIn() {
         val signInIntent: Intent = googleSignInClient.signInIntent

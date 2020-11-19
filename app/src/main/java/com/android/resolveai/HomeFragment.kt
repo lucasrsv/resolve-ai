@@ -17,12 +17,16 @@ import com.android.resolveai.databinding.FragmentHomeBinding
 import com.firebase.ui.database.FirebaseRecyclerAdapter
 import com.firebase.ui.database.FirebaseRecyclerOptions
 import com.google.android.material.textview.MaterialTextView
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.Query
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.*
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.ktx.storage
+import kotlinx.android.synthetic.main.fragment_report.view.*
 import kotlinx.android.synthetic.main.report_item.view.*
+import kotlinx.android.synthetic.main.report_item.view.reportDate
+import kotlinx.android.synthetic.main.report_item.view.reportDescription
+import kotlinx.android.synthetic.main.report_item.view.reportImage
+import kotlinx.android.synthetic.main.report_item.view.reportTitle
 import kotlinx.coroutines.*
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -34,6 +38,7 @@ import java.net.URL
 class HomeFragment : Fragment() {
     private lateinit var recyclerReport: RecyclerView
     private lateinit var database: DatabaseReference
+    private lateinit var auth: FirebaseAuth
     private lateinit var options: FirebaseRecyclerOptions<Post>
     private lateinit var firebaseQuery: Query
     private lateinit var reportAdapter: FirebaseRecyclerAdapter<Post, ReportViewHolder>
@@ -42,6 +47,7 @@ class HomeFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         database = FirebaseDatabase.getInstance().reference
+        auth = FirebaseAuth.getInstance()
         firebaseQuery = database.child("reports")
         options = FirebaseRecyclerOptions.Builder<Post>()
                 .setQuery(firebaseQuery, Post::class.java)
@@ -54,25 +60,7 @@ class HomeFragment : Fragment() {
     ): View? {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding.root
-        val storage = Firebase.storage
-        val storageRef = storage.reference
-        val arianaRef =  storageRef.child("-MLcqzJ0ggIIh7Umqysu/ariana.jpg")
-        val ariana = activity?.let { ContextCompat.getDrawable(it, R.drawable.ariana) }
-        val bitmap = (ariana as BitmapDrawable).bitmap
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
-        val data = baos.toByteArray()
 
-        var uploadTask = arianaRef.putBytes(data)
-        uploadTask.addOnFailureListener {
-            Log.d("errado", "eerrado")
-        }.addOnSuccessListener {
-            Log.d("certo", "certo")
-        }
-
-        val url = storageRef.child("-MLcqzJ0ggIIh7Umqysu/ariana.jpg").downloadUrl.addOnSuccessListener {
-            Log.d("url", it.toString())
-        }
         recyclerView()
         recyclerReport = view.findViewById<RecyclerView>(R.id.recycler_view).apply {
             layoutManager = LinearLayoutManager(activity)
@@ -96,6 +84,7 @@ class HomeFragment : Fragment() {
         var reportTitle: MaterialTextView = reportView.reportTitle
         var reportDescription: MaterialTextView = reportView.reportDescription
         var reportImage: ImageView = reportView.reportImage
+        var reportDate: MaterialTextView = reportView.reportDate
     }
 
     private fun recyclerView() {
@@ -108,7 +97,8 @@ class HomeFragment : Fragment() {
             override fun onBindViewHolder(holder: ReportViewHolder, position: Int, model: Post) {
                 holder.reportTitle.text = model.postTitle
                 holder.reportDescription.text = model.postDescription
-                getImageFromURL("https://firebasestorage.googleapis.com/v0/b/resolve-ai-android.appspot.com/o/-MLcqzJ0ggIIh7Umqysu%2Fariana.jpg?alt=media&token=fa06ac08-9c35-48ea-b21e-410e9761ed86", holder.reportImage)
+                holder.reportDate.text = model.postProblemDate
+                getImageFromURL(model.postImageUrl, holder.reportImage)
             }
         }
     }

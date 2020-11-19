@@ -1,13 +1,14 @@
 package com.android.resolveai
 
-import java.sql.Timestamp
-import java.util.*
+import com.google.firebase.database.ServerValue
 
 data class Post(
-        val postId: Int = 0,
-        val postUserId: Int = 0,
+        val postId: String = "",
+        val postUserId: String = "",
         val postTitle: String = "",
         val postDescription: String = "",
+        val postDate: Long = 0,
+        val postProblemDate: String = "",
         val postLocale: String = "",
         val postLikes: Int = 0,
         val postImageUrl: String = "",
@@ -17,5 +18,7 @@ data class Post(
                 0,
                 "a"
         ))
-)
+) {
+        constructor(postUserId: String?) : this()
+}
 
