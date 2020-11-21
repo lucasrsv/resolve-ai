@@ -1,15 +1,16 @@
 package com.android.resolveai
 
+import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
+import android.renderscript.Sampler
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.ImageView
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -18,17 +19,14 @@ import com.firebase.ui.database.FirebaseRecyclerAdapter
 import com.firebase.ui.database.FirebaseRecyclerOptions
 import com.google.android.material.textview.MaterialTextView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.*
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
-import kotlinx.android.synthetic.main.fragment_report.view.*
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.Query
 import kotlinx.android.synthetic.main.report_item.view.*
-import kotlinx.android.synthetic.main.report_item.view.reportDate
-import kotlinx.android.synthetic.main.report_item.view.reportDescription
-import kotlinx.android.synthetic.main.report_item.view.reportImage
-import kotlinx.android.synthetic.main.report_item.view.reportTitle
-import kotlinx.coroutines.*
-import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -91,20 +89,38 @@ class HomeFragment : Fragment() {
         reportAdapter = object : FirebaseRecyclerAdapter<Post, ReportViewHolder>(options) {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReportViewHolder {
                 val reportView = LayoutInflater.from(parent.context).inflate(R.layout.report_item, parent, false)
+                val dimensions = context!!.resources!!.displayMetrics
+                val height = dimensions.heightPixels
+
+                //Get the minimum height of the cardView and sets a clickListener to expand/collapse the cardView
+                reportView.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                    override fun onPreDraw(): Boolean {
+                        reportView.viewTreeObserver.removeOnPreDrawListener(this)
+                        val layoutParams = reportView.layoutParams
+                        val minHeight = reportView.height
+                        layoutParams.height = minHeight
+                        reportView.layoutParams = layoutParams
+
+                        reportView.setOnClickListener {
+                            changeCardHeight(reportView, height, minHeight)
+                        }
+                        return true
+                    }
+                })
                 return ReportViewHolder(reportView)
             }
 
             override fun onBindViewHolder(holder: ReportViewHolder, position: Int, model: Post) {
                 holder.reportTitle.text = model.postTitle
                 holder.reportDescription.text = model.postDescription
-                holder.reportDate.text = model.postProblemDate
+                holder.reportDate.text = getString(R.string.dateText, model.postProblemDate)
                 getImageFromURL(model.postImageUrl, holder.reportImage)
             }
         }
     }
 
-
-     fun getImageFromURL(src: String?, reportImage: ImageView) {
+    //Create a connection to get the Image from the URL stored in Firebase Database, through Coroutines
+    private fun getImageFromURL(src: String?, reportImage: ImageView) {
         GlobalScope.launch(Dispatchers.IO) {
             val url = URL(src)
             val connection = url.openConnection() as HttpURLConnection
@@ -123,5 +139,40 @@ class HomeFragment : Fragment() {
                 connection.disconnect()
             }
         }
+    }
+
+    //Check if cardView is already expanded or not
+    private fun changeCardHeight(reportView: View, height: Int, minHeight: Int) {
+        if (reportView.height == minHeight) {
+            expandCardView(height, reportView)
+        } else {
+            collapseCardView(minHeight, reportView)
+        }
+    }
+
+    //Animate the height of the cardView
+    private fun expandCardView(height: Int, reportView: View) {
+        val animation = ValueAnimator.ofInt(reportView.measuredHeightAndState, height).apply {
+            addUpdateListener {
+                val actualHeight = animatedValue
+                val layoutParams = reportView.layoutParams
+                layoutParams.height = actualHeight as Int
+                reportView.layoutParams = layoutParams
+            }
+        }
+        animation.start()
+    }
+
+    //Animate the height of the cardView
+    private fun collapseCardView(minHeight: Int, reportView: View) {
+        val animation = ValueAnimator.ofInt(reportView.measuredHeightAndState, minHeight).apply {
+            addUpdateListener {
+                val actualHeight = animatedValue
+                val layoutParams = reportView.layoutParams
+                layoutParams.height = actualHeight as Int
+                reportView.layoutParams = layoutParams
+            }
+        }
+        animation.start()
     }
 }
