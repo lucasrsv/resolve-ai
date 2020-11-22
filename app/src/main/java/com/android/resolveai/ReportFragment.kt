@@ -17,6 +17,12 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.android.resolveai.databinding.FragmentReportBinding
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.libraries.places.widget.Autocomplete
+import com.google.android.libraries.places.widget.AutocompleteActivity.RESULT_ERROR
+import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.textfield.TextInputLayout
@@ -35,6 +41,8 @@ class ReportFragment : Fragment() {
     private lateinit var database: FirebaseDatabase
     private lateinit var auth: FirebaseAuth
     private lateinit var dateField: TextInputLayout
+    private lateinit var placesClient: PlacesClient
+    private val AUTOCOMPLETE_REQUEST_CODE = 1
 
     private val PICK_IMAGE = 100
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,6 +50,9 @@ class ReportFragment : Fragment() {
         storage = FirebaseStorage.getInstance()
         database = FirebaseDatabase.getInstance()
         auth = FirebaseAuth.getInstance()
+        //Need to remove the API Key from here
+        Places.initialize(requireContext(), "AIzaSyBuYTBbLQaNnh3gEIsB1N2hrMi6f_5MYYQ")
+        placesClient = Places.createClient(requireContext())
 
     }
 
@@ -52,6 +63,10 @@ class ReportFragment : Fragment() {
     ): View? {
         binding = FragmentReportBinding.inflate(inflater, container, false)
         binding.dateInput.let {
+            it.inputType = InputType.TYPE_NULL
+            it.keyListener = null
+        }
+        binding.reportLocalInput.let {
             it.inputType = InputType.TYPE_NULL
             it.keyListener = null
         }
@@ -87,6 +102,15 @@ class ReportFragment : Fragment() {
             }
         }
 
+        binding.reportLocalInput.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                val fields = listOf(Place.Field.ID, Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG)
+                val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
+                    .build(requireActivity().baseContext)
+                startActivityForResult(intent, AUTOCOMPLETE_REQUEST_CODE)
+            }
+        }
+
         materialDatePicker.addOnPositiveButtonClickListener {
             binding.dateInput.setText(materialDatePicker.headerText, TextView.BufferType.EDITABLE)
             binding.dateInput.clearFocus()
@@ -110,7 +134,6 @@ class ReportFragment : Fragment() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             val imgUri = data?.data
             val imgStream = imgUri?.let { context?.contentResolver?.openInputStream(it) }
@@ -145,7 +168,22 @@ class ReportFragment : Fragment() {
             BitmapFactory.decodeStream(imgStream).also { bitmap ->
                 binding.reportImage.setImageBitmap(bitmap)
             }
+        } else if (requestCode == AUTOCOMPLETE_REQUEST_CODE) {
+            when (resultCode) {
+                RESULT_OK -> {
+                    val place = data?.let { Autocomplete.getPlaceFromIntent(it) }
+                    binding.reportLocalInput.setText(place?.name, TextView.BufferType.EDITABLE)
+                }
+                RESULT_ERROR -> {
+                    data?.let {
+                        val status = Autocomplete.getStatusFromIntent(data)
+                        Log.d("Places_Error: ", status.statusMessage!!)
+                    }
+                }
+            }
+            return
         }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun sendImageToFirebase(key: String) {
