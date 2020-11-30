@@ -122,10 +122,9 @@ class LoginActivity : AppCompatActivity() {
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         val comment = Comment()
         val post = Post(
-            postComments = listOf(comment)
         )
 
-        val user = User(firebaseUser!!.uid, firebaseUser.email, "", "", listOf(post), listOf(post), listOf(comment))
+        val user = User(firebaseUser!!.uid, firebaseUser.displayName, firebaseUser.email, "", "", listOf(post), listOf(post), listOf(comment))
         database.child("users").child(firebaseUser.uid).setValue(user)
     }
 

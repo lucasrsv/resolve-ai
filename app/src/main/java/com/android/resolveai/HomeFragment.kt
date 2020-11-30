@@ -1,46 +1,46 @@
 package com.android.resolveai
 
 import android.animation.ValueAnimator
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.renderscript.Sampler
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.view.ViewTreeObserver
+import android.view.*
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.OnItemTouchListener
 import com.android.resolveai.databinding.FragmentHomeBinding
 import com.firebase.ui.database.FirebaseRecyclerAdapter
 import com.firebase.ui.database.FirebaseRecyclerOptions
+import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textview.MaterialTextView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.Query
+import com.google.firebase.database.*
+import kotlinx.android.synthetic.main.comment_item.view.*
 import kotlinx.android.synthetic.main.report_item.view.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.IOException
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 
 
 class HomeFragment : Fragment() {
     private lateinit var recyclerReport: RecyclerView
+    private lateinit var recyclerComment: RecyclerView
     private lateinit var database: DatabaseReference
     private lateinit var auth: FirebaseAuth
     private lateinit var options: FirebaseRecyclerOptions<Post>
+    private lateinit var commentsOptions: FirebaseRecyclerOptions<Comment>
     private lateinit var firebaseQuery: Query
     private lateinit var reportAdapter: FirebaseRecyclerAdapter<Post, ReportViewHolder>
+    private lateinit var commentsAdapter: FirebaseRecyclerAdapter<Comment, CommentsViewHolder>
+    private var firstTimeListening = true
+    private var onItemClick: (Int) -> Unit = {}
     private lateinit var binding: FragmentHomeBinding
+
+    interface CellClickListener {
+        fun onCellClickListener()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,19 +63,24 @@ class HomeFragment : Fragment() {
         recyclerReport = view.findViewById<RecyclerView>(R.id.recycler_view).apply {
             layoutManager = LinearLayoutManager(activity)
             adapter = reportAdapter
-
         }
+
         return view
     }
 
     override fun onStart() {
         super.onStart()
         reportAdapter.startListening()
+        if (!firstTimeListening) {
+            commentsAdapter.startListening()
+        }
+        firstTimeListening = false
     }
 
     override fun onStop() {
-        super.onStop()
         reportAdapter.stopListening()
+        //commentsAdapter.stopListening()
+        super.onStop()
     }
 
     private  inner class ReportViewHolder(reportView: View) : RecyclerView.ViewHolder(reportView) {
@@ -83,10 +88,16 @@ class HomeFragment : Fragment() {
         var reportDescription: MaterialTextView = reportView.reportDescription
         var reportImage: ImageView = reportView.reportImage
         var reportDate: MaterialTextView = reportView.reportDate
+        var reportLocal: MaterialTextView = reportView.reportLocal
+        var reportComments: RecyclerView = reportView.comments_recycler_view
+        var commentButton = reportView.sendCommentButon
+        var commentText = reportView.commentInput.text.toString()
+
     }
 
     private fun recyclerView() {
         reportAdapter = object : FirebaseRecyclerAdapter<Post, ReportViewHolder>(options) {
+            var onItemClick: ((Post) -> Unit)? = null
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReportViewHolder {
                 val reportView = LayoutInflater.from(parent.context).inflate(R.layout.report_item, parent, false)
                 val dimensions = context!!.resources!!.displayMetrics
@@ -114,29 +125,53 @@ class HomeFragment : Fragment() {
                 holder.reportTitle.text = model.postTitle
                 holder.reportDescription.text = model.postDescription
                 holder.reportDate.text = getString(R.string.dateText, model.postProblemDate)
-                getImageFromURL(model.postImageUrl, holder.reportImage)
+                holder.reportLocal.text = getString(R.string.dateLocal, model.postLocale)
+                ImageFromUrl().getImageFromURL(model.postImageUrl, holder.reportImage)
+
+                //Open the report locale in google maps
+                holder.reportLocal.setOnClickListener {
+                    val latitude = model.postLatitude
+                    val longitude = model.postLongitude
+                    val mapIntentUri = Uri.parse("geo:$latitude, $longitude")
+                    val mapIntent = Intent(Intent.ACTION_VIEW, mapIntentUri)
+                    mapIntent.setPackage("com.google.android.apps.maps")
+                    startActivity(mapIntent)
+                }
+
+                holder.commentButton.setOnClickListener {
+                    sendCommentToFirebase(holder.itemView.commentInput.text.toString(), model.postId)
+                }
+                commentsOptions = FirebaseRecyclerOptions.Builder<Comment>()
+                        .setQuery(database.child("reports").child(model.postId).child("postComments"), Comment::class.java)
+                        .build()
+                commentsRecyclerView(model)
+                recyclerComment = holder.reportComments.apply {
+                    layoutManager = LinearLayoutManager(activity)
+                    adapter = commentsAdapter
+                }
+                commentsAdapter.startListening()
             }
         }
     }
 
-    //Create a connection to get the Image from the URL stored in Firebase Database, through Coroutines
-    private fun getImageFromURL(src: String?, reportImage: ImageView) {
-        GlobalScope.launch(Dispatchers.IO) {
-            val url = URL(src)
-            val connection = url.openConnection() as HttpURLConnection
-            try {
-                connection.doInput = true
-                connection.connect()
-                val input: InputStream = connection.inputStream
-                val bitmap: Bitmap = BitmapFactory.decodeStream(input)
-                withContext(Dispatchers.Main) {
-                    reportImage.setImageBitmap(bitmap)
-                }
-            } catch (e: IOException) {
-                e.printStackTrace()
-                e.message?.let { Log.e("Exception ", it) }
-            } finally {
-                connection.disconnect()
+
+    private inner class CommentsViewHolder(commentsView: View) : RecyclerView.ViewHolder(commentsView) {
+        var userName: MaterialTextView = commentsView.userName
+        var comment: MaterialTextView = commentsView.comment
+    }
+
+    private fun commentsRecyclerView(model: Post) {
+        commentsAdapter = object : FirebaseRecyclerAdapter<Comment, CommentsViewHolder>(commentsOptions) {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentsViewHolder {
+                val commentView = LayoutInflater.from(context).inflate(R.layout.comment_item, parent, false)
+
+                return CommentsViewHolder(commentView)
+
+            }
+
+            override fun onBindViewHolder(holder: CommentsViewHolder, position: Int, model: Comment) {
+                holder.userName.text = model.commentUserName
+                holder.comment.text = model.commentText
             }
         }
     }
@@ -175,4 +210,26 @@ class HomeFragment : Fragment() {
         }
         animation.start()
     }
+
+    private fun sendCommentToFirebase(commentText: String, postId: String) {
+        var comment = Comment(
+                commentText = commentText,
+                commentUserId = auth.currentUser!!.uid
+        )
+        database.child("users").child(auth.currentUser!!.uid).addValueEventListener(
+                object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        comment.commentUserName = snapshot.child("userName").value as String
+                        val key = database.child("reports").child(postId).child("postComments").push().key.toString()
+                        comment.commentId = key
+                        database.child("reports").child(postId).child("postComments").child(key).setValue(comment)
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+
+                    }
+                }
+        )
+    }
 }
+

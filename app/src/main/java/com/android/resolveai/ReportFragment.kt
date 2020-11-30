@@ -1,12 +1,18 @@
 package com.android.resolveai
 
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.text.InputType
 import android.util.Log
@@ -15,8 +21,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.animation.doOnEnd
+import androidx.core.animation.doOnStart
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import com.android.resolveai.databinding.FragmentReportBinding
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.net.PlacesClient
@@ -28,10 +38,12 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ServerValue
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.fragment_report.*
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.min
 
@@ -42,7 +54,10 @@ class ReportFragment : Fragment() {
     private lateinit var auth: FirebaseAuth
     private lateinit var dateField: TextInputLayout
     private lateinit var placesClient: PlacesClient
+    private lateinit var latLng: LatLng
+    private lateinit var photoPath: String
     private val AUTOCOMPLETE_REQUEST_CODE = 1
+    private val REQUEST_IMAGE_CAPTURE = 2
 
     private val PICK_IMAGE = 100
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -62,6 +77,8 @@ class ReportFragment : Fragment() {
             savedInstanceState: Bundle?
     ): View? {
         binding = FragmentReportBinding.inflate(inflater, container, false)
+
+        //This is because we don't want the keyboard to open when the user click on those buttons
         binding.dateInput.let {
             it.inputType = InputType.TYPE_NULL
             it.keyListener = null
@@ -70,7 +87,9 @@ class ReportFragment : Fragment() {
             it.inputType = InputType.TYPE_NULL
             it.keyListener = null
         }
+
         binding.sendReportButton.setOnClickListener {
+            //Checks if there's any empty input before sending it
             if (binding.dateInput.text.toString() == "" ||
                 binding.reportTitleInput.text.toString() == "" ||
                 binding.reportDescriptionInput.text.toString() == "" ||
@@ -79,8 +98,6 @@ class ReportFragment : Fragment() {
                 toast.show()
             } else {
                 sendReportToFirebase()
-                val toast = Toast.makeText(context, "Denúncia enviada.", Toast.LENGTH_LONG)
-                toast.show()
             }
         }
         val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
@@ -96,6 +113,8 @@ class ReportFragment : Fragment() {
                 )
         val materialDatePicker = builder.build()
 
+        // We're using setOnFocusChangeListener because there's an issue with the buttons that requires the user to click on it two times
+        // So, by using setOnFocusChangeListener, the user won't need to click on it more than once
         binding.dateInput.setOnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
                 materialDatePicker.show(parentFragmentManager, "DATE_PICKER")
@@ -111,12 +130,76 @@ class ReportFragment : Fragment() {
             }
         }
 
+        //If the user chose a date
         materialDatePicker.addOnPositiveButtonClickListener {
             binding.dateInput.setText(materialDatePicker.headerText, TextView.BufferType.EDITABLE)
             binding.dateInput.clearFocus()
         }
         materialDatePicker.addOnNegativeButtonClickListener { binding.dateInput.clearFocus() }
 
+        binding.addImageButton.setOnClickListener {
+            if (binding.openGalleryButton.visibility == View.INVISIBLE) {
+                val fadeInGalleryButton = ObjectAnimator.ofFloat(binding.openGalleryButton, "alpha", 0f, 1f).apply {
+                    duration = 250
+                    startDelay = 50
+                    doOnStart {
+                        binding.openGalleryButton.visibility = View.VISIBLE
+                        binding.addImageButton.setImageResource(R.drawable.ic_clear)
+                    }
+                }
+                val fadeInCameraButton = ObjectAnimator.ofFloat(binding.openCameraButton, "alpha", 0f, 1f).apply {
+                    duration = 250
+                    doOnStart { binding.openCameraButton.visibility = View.VISIBLE }
+                }
+                AnimatorSet().apply {
+                    playTogether(fadeInGalleryButton, fadeInCameraButton)
+                    start()
+                }
+            } else {
+                val fadeOutGalleryButton = ObjectAnimator.ofFloat(binding.openGalleryButton, "alpha", 1f, 0f).apply {
+                    duration = 250
+                    doOnStart { binding.addImageButton.setImageResource(R.drawable.ic_attach_file) }
+                    doOnEnd { binding.openGalleryButton.visibility = View.INVISIBLE }
+                }
+                val fadeOutCameraButton = ObjectAnimator.ofFloat(binding.openCameraButton, "alpha", 1f, 0f).apply {
+                    duration = 250
+                    startDelay = 50
+                    doOnEnd { binding.openGalleryButton.visibility = View.INVISIBLE }
+                }
+                AnimatorSet().apply {
+                    playTogether(fadeOutGalleryButton, fadeOutCameraButton)
+                    start()
+                }
+            }
+        }
+
+        binding.openCameraButton.setOnClickListener {
+            Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+                try {
+                    takePictureIntent.also {
+                        val photoFile: File? = try {
+                            createImageFile()
+                        } catch (ex: IOException) {
+                            Log.d("errocriarfoto", "eh")
+                            Toast.makeText(context, "Houve um erro com o arquivo da foto.", Toast.LENGTH_LONG).show()
+                            null
+                        }
+                        photoFile?.also {
+                             val photoURI: Uri = FileProvider.getUriForFile(
+                                    requireContext(),
+                                    "com.resolveai.android.fileprovider",
+                                    it
+                            )
+                            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
+                            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                        }
+                    }
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(context, "Não foi possível abrir a câmera.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        //Lets the user choose a picture from gallery
         binding.openGalleryButton.setOnClickListener {
             val galleryIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.INTERNAL_CONTENT_URI)
             startActivityForResult(galleryIntent, PICK_IMAGE)
@@ -137,34 +220,11 @@ class ReportFragment : Fragment() {
         if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             val imgUri = data?.data
             val imgStream = imgUri?.let { context?.contentResolver?.openInputStream(it) }
-            val imgStream2 = imgUri?.let { context?.contentResolver?.openInputStream(it) }
             val targetW = binding.reportImage.width
             val targetH = binding.reportImage.height
-            val image = BitmapFactory.decodeStream(imgStream2)
             Log.d("Target W/H ", "$targetW of width, and $targetH of height")
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-                val imgW = outWidth //Retornando 0 (?)
-                val imgH = outHeight
-                val scaleFactor = min(image.width / targetW, image.height / targetH)
-                Log.d("Img W/H ", "$imgW of width, and $imgH of height")
-                inJustDecodeBounds = false
-                //inSampleSize = scaleFactor
 
-
-                var sampleSize = 1
-                if (image.height > targetH || image.width > targetW) {
-                    val halfHeight: Int = image.height / 2
-                    val halfWidth: Int = image.width / 2
-                    // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-                    // height and width larger than the requested height and width.
-                    while (halfHeight / sampleSize >= targetH && halfWidth / sampleSize >= targetW) {
-                        sampleSize *= 2
-                    }
-                }
-                inSampleSize = sampleSize
-                Log.d("insmaplesize", sampleSize.toString())
-            }
+            //Shows the image
             BitmapFactory.decodeStream(imgStream).also { bitmap ->
                 binding.reportImage.setImageBitmap(bitmap)
             }
@@ -173,6 +233,7 @@ class ReportFragment : Fragment() {
                 RESULT_OK -> {
                     val place = data?.let { Autocomplete.getPlaceFromIntent(it) }
                     binding.reportLocalInput.setText(place?.name, TextView.BufferType.EDITABLE)
+                    latLng = place!!.latLng!! //Latitude and longitude
                 }
                 RESULT_ERROR -> {
                     data?.let {
@@ -182,8 +243,30 @@ class ReportFragment : Fragment() {
                 }
             }
             return
+        } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            BitmapFactory.decodeFile(photoPath).also { bitmap ->
+                binding.reportImage.setImageBitmap(bitmap)
+            }
         }
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    private fun createImageFile(): File {
+        // Create an image file name
+        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        val storageDirectory: File? = context?.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(
+                "JPEG_${timeStamp}_",
+                ".jpg",
+                storageDirectory
+        ).apply {
+            photoPath = absolutePath
+        }
+    }
+
+    private fun sendImageToGallery() {
+        val file = File(photoPath)
+        MediaScannerConnection.scanFile(context, arrayOf(file.toString()), arrayOf(file.name), null)
     }
 
     private fun sendImageToFirebase(key: String) {
@@ -194,9 +277,14 @@ class ReportFragment : Fragment() {
         imgBitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos)
         val imgData = baos.toByteArray()
         storageRef.child(key).child("reportImage.png").putBytes(imgData)
-                .addOnSuccessListener {
-                    storageRef.child(key).child("reportImage.png").downloadUrl.addOnSuccessListener {
-                        databaseRef.child("reports").child(key).child("postImageUrl").setValue(it.toString())
+                .addOnSuccessListener { //Image was succesfully sent to Firestore
+                    storageRef.child(key).child("reportImage.png").downloadUrl.addOnSuccessListener {//The image url was succesfully downloaded from Firestore
+                        databaseRef.child("reports").child(key).child("postImageUrl").setValue(it.toString()).addOnSuccessListener {//The img url is sent to the Firebase Database
+                            //Now, everything is ok: the report data (including image url) was sent to the database
+                            //And the image was sent to the storage
+                            val toast = Toast.makeText(context, "Denúncia enviada.", Toast.LENGTH_LONG)
+                            toast.show()
+                        }
                     }
                 }
 
@@ -211,8 +299,11 @@ class ReportFragment : Fragment() {
                 postLocale = binding.reportLocalInput.text.toString(),
                 postProblemDate = binding.dateInput.text.toString(),
                 postDate = System.currentTimeMillis(),
+                postLatitude = latLng.latitude,
+                postLongitude = latLng.longitude
         )
         val key = databaseRef.child("reports").push().key.toString()
+        post.postId = key
         databaseRef.child("reports").child(key).setValue(post).addOnSuccessListener {
             sendImageToFirebase(key)
         }

@@ -2,6 +2,7 @@ package com.android.resolveai
 
 data class User(
     val userId: String? = "",
+    val userName: String? = "",
     val userEmail: String? = "",
     val userAddress: String? = "",
     val userPhone: String? ="",

@@ -4,5 +4,6 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="ariana">Ariana</string>
     <string name="dateText">Data de início do problema: %1$s</string>
+    <string name="dateLocal">Local do problema: %1$s</string>
     <string name="places_api_key">AIzaSyBuYTBbLQaNnh3gEIsB1N2hrMi6f_5MYYQ</string>
 </resources>

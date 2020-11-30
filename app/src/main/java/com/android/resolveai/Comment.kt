@@ -7,8 +7,8 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 data class Comment(
-        val commentId: Int = 0,
-        val commentUserId: Int = 0,
-        val commentUserName: Int = 0,
+        var commentId: String = "",
+        val commentUserId: String = "",
+        var commentUserName: String = "",
         val commentText: String = ""
 )
