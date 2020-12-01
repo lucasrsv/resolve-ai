@@ -35,6 +35,7 @@ class LoginActivity : AppCompatActivity() {
             R.layout.activity_login)
 
         signInButton = binding.signInButton
+        // Configures the GoogleSignIn to request the user email
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
@@ -42,8 +43,10 @@ class LoginActivity : AppCompatActivity() {
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
         auth = FirebaseAuth.getInstance()
+
         authStateListener = FirebaseAuth.AuthStateListener {
             val firebaseUser = auth.currentUser
+            // If firebaseUser is not null, user is logged in, so there's no need to stay in the LoginActivity
             if (firebaseUser != null) {
                 val intent = Intent(this, MainActivity::class.java)
                 startActivity(intent)
@@ -77,30 +80,27 @@ class LoginActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-
         if (requestCode == RC_SIGN_IN) {
             val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             try {
                 val account = task.getResult(ApiException::class.java)
                 firebaseAuthWithGoogle(account!!)
             } catch (e: ApiException) {
-                Log.w("Google Login", "signInResult: failed code = " + e.statusCode)
                 val toast = Toast.makeText(applicationContext, "Ocorreu um problema na autenticação.", Toast.LENGTH_LONG)
                 toast.show()
             }
         }
     }
 
+    // Authenticate the user, based on the chosen google account
     private fun firebaseAuthWithGoogle(acct: GoogleSignInAccount) {
-        Log.d("Google Login", "firebaseAuthWithGoogle:" + acct.id!!)
         val credential = GoogleAuthProvider.getCredential(acct.idToken, null)
         auth.signInWithCredential(credential)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
-                    Log.d("Google Login", "signInWithCredential:success")
                     val isNewUser = task.result!!.additionalUserInfo!!.isNewUser
                     if (isNewUser) {
-                        writeNewUser()
+                        writeNewUser() //Write the new user data in Firebase Database
                     }
                     val intent = Intent(baseContext, MainActivity::class.java)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
@@ -111,13 +111,13 @@ class LoginActivity : AppCompatActivity() {
                     overridePendingTransition(0, 0);
                     finish()
                 } else {
-                    Log.w("Google Login", "signInWithCredential:failure", task.exception)
                     val toast = Toast.makeText(applicationContext, "Não foi possível fazer login :(.", Toast.LENGTH_LONG)
                     toast.show()
                 }
             }
     }
 
+    //Write the new user data in Firebase Database. User, Post and Comment are data classes
     private fun writeNewUser() {
         val firebaseUser = FirebaseAuth.getInstance().currentUser
         val comment = Comment()

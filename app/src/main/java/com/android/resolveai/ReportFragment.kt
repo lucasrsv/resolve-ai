@@ -65,7 +65,6 @@ class ReportFragment : Fragment() {
         storage = FirebaseStorage.getInstance()
         database = FirebaseDatabase.getInstance()
         auth = FirebaseAuth.getInstance()
-        //Need to remove the API Key from here
         Places.initialize(requireContext(), "AIzaSyBuYTBbLQaNnh3gEIsB1N2hrMi6f_5MYYQ")
         placesClient = Places.createClient(requireContext())
 
@@ -78,7 +77,7 @@ class ReportFragment : Fragment() {
     ): View? {
         binding = FragmentReportBinding.inflate(inflater, container, false)
 
-        //This is because we don't want the keyboard to open when the user click on those buttons
+        // This is because we don't want the keyboard to open when the user click on those buttons
         binding.dateInput.let {
             it.inputType = InputType.TYPE_NULL
             it.keyListener = null
@@ -89,7 +88,7 @@ class ReportFragment : Fragment() {
         }
 
         binding.sendReportButton.setOnClickListener {
-            //Checks if there's any empty input before sending it
+            // Check if there's any empty input before sending it
             if (binding.dateInput.text.toString() == "" ||
                 binding.reportTitleInput.text.toString() == "" ||
                 binding.reportDescriptionInput.text.toString() == "" ||
@@ -137,6 +136,7 @@ class ReportFragment : Fragment() {
         }
         materialDatePicker.addOnNegativeButtonClickListener { binding.dateInput.clearFocus() }
 
+        // Those are just fadeIn and fadeOut animations to show/hide the gallery and camera buttons
         binding.addImageButton.setOnClickListener {
             if (binding.openGalleryButton.visibility == View.INVISIBLE) {
                 val fadeInGalleryButton = ObjectAnimator.ofFloat(binding.openGalleryButton, "alpha", 0f, 1f).apply {
@@ -173,6 +173,7 @@ class ReportFragment : Fragment() {
             }
         }
 
+        // Open the camera activity and let the user take a picture
         binding.openCameraButton.setOnClickListener {
             Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
                 try {
@@ -180,7 +181,6 @@ class ReportFragment : Fragment() {
                         val photoFile: File? = try {
                             createImageFile()
                         } catch (ex: IOException) {
-                            Log.d("errocriarfoto", "eh")
                             Toast.makeText(context, "Houve um erro com o arquivo da foto.", Toast.LENGTH_LONG).show()
                             null
                         }
@@ -199,12 +199,14 @@ class ReportFragment : Fragment() {
                 }
             }
         }
-        //Lets the user choose a picture from gallery
+
+        // Let the user choose a picture from gallery
         binding.openGalleryButton.setOnClickListener {
             val galleryIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.INTERNAL_CONTENT_URI)
             startActivityForResult(galleryIntent, PICK_IMAGE)
         }
 
+        // Set new y coordinates to the buttons so they will be one on top of the other
         binding.root.post {
             val mainButtonHeight = binding.addImageButton.height
             val cameraButtonHeight = binding.openCameraButton.height
@@ -217,18 +219,14 @@ class ReportFragment : Fragment() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        // Set the chosen image (from the gallery) as the report image
         if (resultCode == RESULT_OK && requestCode == PICK_IMAGE) {
             val imgUri = data?.data
             val imgStream = imgUri?.let { context?.contentResolver?.openInputStream(it) }
-            val targetW = binding.reportImage.width
-            val targetH = binding.reportImage.height
-            Log.d("Target W/H ", "$targetW of width, and $targetH of height")
-
-            //Shows the image
             BitmapFactory.decodeStream(imgStream).also { bitmap ->
                 binding.reportImage.setImageBitmap(bitmap)
             }
-        } else if (requestCode == AUTOCOMPLETE_REQUEST_CODE) {
+        } else if (requestCode == AUTOCOMPLETE_REQUEST_CODE) { // Get the user location, including latitude and longitude
             when (resultCode) {
                 RESULT_OK -> {
                     val place = data?.let { Autocomplete.getPlaceFromIntent(it) }
@@ -239,11 +237,13 @@ class ReportFragment : Fragment() {
                     data?.let {
                         val status = Autocomplete.getStatusFromIntent(data)
                         Log.d("Places_Error: ", status.statusMessage!!)
+                        Toast.makeText(activity, "Ocorreu um erro ao salvar a localização.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
             return
         } else if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            // Set the image the user took from the camera as the report image
             BitmapFactory.decodeFile(photoPath).also { bitmap ->
                 binding.reportImage.setImageBitmap(bitmap)
             }
@@ -304,6 +304,7 @@ class ReportFragment : Fragment() {
         )
         val key = databaseRef.child("reports").push().key.toString()
         post.postId = key
+        // Send the post to Firebase Database and Image to Firebase Storage
         databaseRef.child("reports").child(key).setValue(post).addOnSuccessListener {
             sendImageToFirebase(key)
         }

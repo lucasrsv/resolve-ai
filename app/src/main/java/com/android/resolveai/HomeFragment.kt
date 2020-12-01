@@ -34,13 +34,8 @@ class HomeFragment : Fragment() {
     private lateinit var firebaseQuery: Query
     private lateinit var reportAdapter: FirebaseRecyclerAdapter<Post, ReportViewHolder>
     private lateinit var commentsAdapter: FirebaseRecyclerAdapter<Comment, CommentsViewHolder>
-    private var firstTimeListening = true
-    private var onItemClick: (Int) -> Unit = {}
     private lateinit var binding: FragmentHomeBinding
-
-    interface CellClickListener {
-        fun onCellClickListener()
-    }
+    private var firstTimeListening = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,15 +66,17 @@ class HomeFragment : Fragment() {
     override fun onStart() {
         super.onStart()
         reportAdapter.startListening()
+        // That's because commentsAdapter still won't have been initialized.
+        // The first time will happen inside of the report recyclerView
         if (!firstTimeListening) {
             commentsAdapter.startListening()
         }
-        firstTimeListening = false
+        firstTimeListening = false // Not a good practice...
     }
 
     override fun onStop() {
         reportAdapter.stopListening()
-        //commentsAdapter.stopListening()
+        commentsAdapter.stopListening()
         super.onStop()
     }
 
@@ -91,10 +88,10 @@ class HomeFragment : Fragment() {
         var reportLocal: MaterialTextView = reportView.reportLocal
         var reportComments: RecyclerView = reportView.comments_recycler_view
         var commentButton = reportView.sendCommentButon
-        var commentText = reportView.commentInput.text.toString()
 
     }
 
+    // Report Recycler View
     private fun recyclerView() {
         reportAdapter = object : FirebaseRecyclerAdapter<Post, ReportViewHolder>(options) {
             var onItemClick: ((Post) -> Unit)? = null
@@ -103,7 +100,7 @@ class HomeFragment : Fragment() {
                 val dimensions = context!!.resources!!.displayMetrics
                 val height = dimensions.heightPixels
 
-                //Get the minimum height of the cardView and sets a clickListener to expand/collapse the cardView
+                // Get the minimum height of the cardView and sets a clickListener to expand/collapse the cardView
                 reportView.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
                     override fun onPreDraw(): Boolean {
                         reportView.viewTreeObserver.removeOnPreDrawListener(this)
@@ -139,12 +136,14 @@ class HomeFragment : Fragment() {
                 }
 
                 holder.commentButton.setOnClickListener {
+                    // The parameters are the text the user wrote and the report Id (this is needed because of the way the database was structured)
                     sendCommentToFirebase(holder.itemView.commentInput.text.toString(), model.postId)
                 }
+                // The commentOptions need to change for each report recyclerView item, because each report recyclerView item will have a comments recyclerView
                 commentsOptions = FirebaseRecyclerOptions.Builder<Comment>()
                         .setQuery(database.child("reports").child(model.postId).child("postComments"), Comment::class.java)
                         .build()
-                commentsRecyclerView(model)
+                commentsRecyclerView() // The model is because we'll need to get the model ID (post ID)
                 recyclerComment = holder.reportComments.apply {
                     layoutManager = LinearLayoutManager(activity)
                     adapter = commentsAdapter
@@ -160,7 +159,8 @@ class HomeFragment : Fragment() {
         var comment: MaterialTextView = commentsView.comment
     }
 
-    private fun commentsRecyclerView(model: Post) {
+    // Comment Recycler View, present in each Report Recycler View item
+    private fun commentsRecyclerView() {
         commentsAdapter = object : FirebaseRecyclerAdapter<Comment, CommentsViewHolder>(commentsOptions) {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommentsViewHolder {
                 val commentView = LayoutInflater.from(context).inflate(R.layout.comment_item, parent, false)
@@ -176,7 +176,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    //Check if cardView is already expanded or not
+    // Check if cardView is already expanded or not
     private fun changeCardHeight(reportView: View, height: Int, minHeight: Int) {
         if (reportView.height == minHeight) {
             expandCardView(height, reportView)
@@ -212,7 +212,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun sendCommentToFirebase(commentText: String, postId: String) {
-        var comment = Comment(
+        val comment = Comment(
                 commentText = commentText,
                 commentUserId = auth.currentUser!!.uid
         )
@@ -225,9 +225,7 @@ class HomeFragment : Fragment() {
                         database.child("reports").child(postId).child("postComments").child(key).setValue(comment)
                     }
 
-                    override fun onCancelled(error: DatabaseError) {
-
-                    }
+                    override fun onCancelled(error: DatabaseError) {}
                 }
         )
     }

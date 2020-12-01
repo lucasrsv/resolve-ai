@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:padding="16dp">
 
     <LinearLayout
@@ -15,7 +15,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
             android:textAlignment="center"
-            android:text="Mudar Informações"
+            android:text="Alterar Informações Pessoais"
             android:textAppearance="?attr/textAppearanceHeadline5"/>
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -36,6 +36,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/changeInfoButton"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="8dp"
                 android:text="Alterar"/>
         </LinearLayout>
     </LinearLayout>
