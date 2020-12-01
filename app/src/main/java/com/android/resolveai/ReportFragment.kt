@@ -122,6 +122,7 @@ class ReportFragment : Fragment() {
 
         binding.reportLocalInput.setOnFocusChangeListener { v, hasFocus ->
             if (hasFocus) {
+                // Use Places API to get the report location
                 val fields = listOf(Place.Field.ID, Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG)
                 val intent = Autocomplete.IntentBuilder(AutocompleteActivityMode.OVERLAY, fields)
                     .build(requireActivity().baseContext)
